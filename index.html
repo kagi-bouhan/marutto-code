@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1264a3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="まるっとコード">
+<title>まるっとコード</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;color:#183247;background:#f3f7fa}
+*{box-sizing:border-box}body{margin:0;background:#f3f7fa}button,input,select{font:inherit}.wrap{max-width:1050px;margin:0 auto;padding:18px 16px 60px}
+.header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}.logo{width:220px;max-width:58vw;height:auto}.badge{padding:8px 12px;border-radius:999px;background:#e7f4eb;color:#247044;font-size:13px;font-weight:800}
+.card{background:#fff;border:1px solid #dce7ef;border-radius:20px;box-shadow:0 10px 30px rgba(32,72,103,.08);overflow:hidden;margin-bottom:16px}
+.section{padding:21px}.section+.section{border-top:1px solid #e5edf2}.step-title{display:flex;align-items:center;gap:10px;margin:0 0 14px;font-size:18px}.step-num{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#1769a6;color:#fff;font-size:14px;font-weight:900}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}label{display:block;margin-bottom:7px;font-size:13px;color:#667f91;font-weight:800}
+select,input{width:100%;height:54px;border:2px solid #cfdee8;border-radius:13px;background:#fff;color:#183247;padding:0 14px;outline:none}select:focus,input:focus{border-color:#1769a6;box-shadow:0 0 0 4px rgba(23,105,166,.11)}select:disabled{background:#eef3f6;color:#7a8c99}
+.mode-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mode{height:52px;border:1px solid #cbdbe6;border-radius:13px;background:#fff;color:#31546d;font-weight:900}.mode.active{background:#eaf4fb;border:2px solid #1769a6;color:#0f5e96}
+.info{display:grid;grid-template-columns:.8fr 1.4fr 1.2fr;border-top:1px solid #e5edf2}.info div{padding:14px 16px;border-right:1px solid #e5edf2}.info div:last-child{border-right:0}.info small{display:block;color:#71899a;font-weight:800;margin-bottom:3px}.info b{font-size:14px}
+.search-row{display:grid;grid-template-columns:1fr 130px;gap:12px}.search-input{font-size:22px;font-weight:850;letter-spacing:.08em}.search-btn{border:0;border-radius:13px;background:#d94139;color:#fff;font-size:17px;font-weight:900;box-shadow:0 8px 18px rgba(217,65,57,.22)}.hint{margin:9px 2px 0;color:#6f8798;font-size:13px;line-height:1.55}
+.warning{margin-top:12px;padding:11px 13px;border-radius:11px;background:#fff6df;color:#775915;font-size:13px;font-weight:800;line-height:1.55}
+.tools{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}.tool-btn{border:1px solid #bfd0dc;background:#fff;border-radius:11px;padding:9px 12px;color:#2d526d;font-weight:800}.tool-btn.active{background:#eaf4fb;border-color:#1769a6;color:#0f5e96}
+.keypad{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:14px}.keypad button{height:54px;border:1px solid #c8d8e3;border-radius:12px;background:#f8fbfd;color:#21455f;font-size:20px;font-weight:900}.keypad .wide{grid-column:span 2}.keypad .danger{background:#fff2f1;color:#b92f28}.keypad .go{background:#d94139;color:#fff;border-color:#d94139}
+.results-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid #e5edf2}.results-head h2{margin:3px 0 0}.results-head small{color:#71899a;font-weight:800}.reset-btn{border:1px solid #bfd0dc;background:#fff;border-radius:11px;padding:9px 13px;color:#2d526d;font-weight:800}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:15px 18px;border-bottom:1px solid #edf2f6;text-align:left;white-space:nowrap}th{background:#f8fbfd;color:#6e8596;font-size:12px}.code{color:#0f5e96;font-size:18px;font-weight:900}.pattern{font-size:18px;font-weight:850;letter-spacing:.08em}.orig{color:#8193a1;font-family:monospace}.actions{display:flex;gap:7px}.mini{border:0;border-radius:9px;padding:8px 10px;background:#e9f3fa;color:#155f94;font-weight:850}.fav{background:#fff4cf;color:#826100}.fav.on{background:#ffd84d;color:#5c4400}mark{background:#ffd84d;border-radius:4px;padding:1px 2px}
+.empty{padding:40px;text-align:center}.empty p{color:#71899a}.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;background:#183247;color:#fff;padding:10px 17px;border-radius:999px;font-weight:800;transition:.2s;z-index:20}.toast.show{opacity:1;transform:translate(-50%,0)}
+.drawer{position:fixed;inset:0;background:rgba(15,37,54,.35);display:grid;place-items:end center;z-index:15}.drawer[hidden]{display:none}.sheet{width:min(720px,100%);max-height:78vh;overflow:auto;background:#fff;border-radius:20px 20px 0 0;padding:19px}.sheet-head{display:flex;justify-content:space-between;align-items:center}.sheet-head h2{margin:0}.close{border:0;background:#edf3f7;border-radius:10px;width:40px;height:40px;font-size:21px}.list{margin-top:13px}.list-item{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:13px 4px;border-bottom:1px solid #edf2f6}.list-item button{border:0;background:#e9f3fa;color:#155f94;border-radius:9px;padding:8px 10px;font-weight:800}.muted{color:#71899a}.navbox{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#f8fbfd;border-bottom:1px solid #e5edf2}.navbox button{border:1px solid #bfd0dc;background:#fff;border-radius:10px;padding:8px 12px;font-weight:800;color:#2d526d}.navbox button:disabled{opacity:.35}.nav-current{font-weight:900}
+.loading{padding:18px;text-align:center;color:#71899a;font-weight:800}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}.whoami{font-size:12px;color:#8095a5;font-weight:800;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:700px){.whoami{display:none}}
+@media(max-width:700px){.wrap{padding:13px 11px 34px}.header{margin-bottom:11px}.logo{width:190px;max-width:70vw}.badge{display:none}.section{padding:16px}.grid2{grid-template-columns:1fr}.search-row{grid-template-columns:1fr}.search-btn{height:52px}.info{grid-template-columns:1fr 1fr}.info div{padding:12px}.info div:last-child{grid-column:1/-1;border-top:1px solid #e5edf2}.orig,.orig-head{display:none}th,td{padding:13px 10px}.actions{gap:5px}.mini{padding:8px}.keypad{grid-template-columns:repeat(4,1fr)}}
+</style>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<script>
+/* Service Worker 登録。
+   更新があったら即座に新しい SW へ切り替える（古いキャッシュがログイン画面を
+   素通りさせる事故を防ぐため）。 */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",async()=>{
+    try{
+      const reg=await navigator.serviceWorker.register("sw.js");
+      reg.addEventListener("updatefound",()=>{
+        const sw=reg.installing;
+        if(!sw)return;
+        sw.addEventListener("statechange",()=>{
+          if(sw.state==="installed"&&navigator.serviceWorker.controller){
+            sw.postMessage({type:"SKIP_WAITING"});
+          }
+        });
+      });
+      let reloading=false;
+      navigator.serviceWorker.addEventListener("controllerchange",()=>{
+        if(reloading)return; reloading=true; location.reload();
+      });
+    }catch(e){console.warn("SW登録に失敗",e)}
+  });
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <img class="logo" src="icon.png" alt="まるっとコード">
+    <div class="header-right"><div id="badge" class="badge">データ読込中</div><span id="whoami" class="whoami"></span><span id="logoutSlot"></span></div>
+  </div>
+  <div class="card">
+    <div class="section">
+      <h2 class="step-title"><span class="step-num">1</span>メーカーとキーブランクを選択</h2>
+      <div class="grid2">
+        <div><label for="maker">メーカー</label><select id="maker"><option value="">メーカーを選択</option></select></div>
+        <div><label for="blank">キーブランク</label><select id="blank" disabled><option value="">先にメーカーを選択</option></select></div>
+      </div>
+    </div>
+    <div class="section" id="searchSection" hidden>
+      <h2 class="step-title"><span class="step-num">2</span>検索方法を選択</h2>
+      <div class="mode-row"><button class="mode active" data-mode="reverse" type="button">逆引き検索</button><button class="mode" data-mode="code" type="button">コード検索</button></div>
+    </div>
+    <div class="info" id="infoArea" hidden>
+      <div><small>対象範囲</small><b id="rangeInfo"></b></div>
+      <div><small>段差</small><b id="depthInfo"></b></div>
+      <div><small>変換</small><b id="mapInfo"></b></div>
+    </div>
+    <div class="section" id="inputSection" hidden>
+      <h2 class="step-title"><span class="step-num">3</span><span id="inputTitle">配列を入力</span></h2>
+      <div class="search-row"><input id="q" class="search-input" inputmode="numeric" placeholder="例：2331" maxlength="50"><button id="go" class="search-btn" type="button">検索</button></div>
+      <p id="hint" class="hint">途中の数字でも検索できます。</p>
+      <div id="warning" class="warning"></div>
+      <div class="tools"><button id="keypadToggle" class="tool-btn" type="button">数字ボタンを表示</button><button id="historyBtn" class="tool-btn" type="button">検索履歴</button><button id="favoritesBtn" class="tool-btn" type="button">お気に入り</button></div>
+      <div id="keypad" class="keypad" hidden>
+        <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button><button data-key="4">4</button>
+        <button data-key="5">5</button><button data-key="6">6</button><button data-key="7">7</button><button data-key="8">8</button>
+        <button data-key="9">9</button><button data-key="0">0</button><button class="danger" data-key="back">⌫</button><button class="danger" data-key="clear">クリア</button>
+        <button class="wide go" data-key="search">検索</button><button class="wide" data-key="close">閉じる</button>
+      </div>
+    </div>
+    <div id="loading" class="loading" hidden>データを読み込んでいます…</div>
+  </div>
+  <div class="card" id="resultsCard" hidden>
+    <div class="results-head"><div><small id="caption">検索結果</small><h2 id="total"></h2></div><button id="reset" class="reset-btn" type="button">検索し直す</button></div>
+    <div id="navbox" class="navbox" hidden><button id="prevCode" type="button">← 前のコード</button><span id="navCurrent" class="nav-current"></span><button id="nextCode" type="button">次のコード →</button></div>
+    <div class="table-wrap"><table><thead><tr><th>キーコード</th><th>配列</th><th class="orig-head">元データ</th><th></th></tr></thead><tbody id="body"></tbody></table></div>
+  </div>
+  <div class="card empty" id="empty" hidden><h2>該当データがありません</h2><p>入力内容を確認してください。</p></div>
+</div>
+<div class="drawer" id="drawer" hidden><div class="sheet"><div class="sheet-head"><h2 id="drawerTitle"></h2><button class="close" id="drawerClose" type="button">×</button></div><div class="list" id="drawerList"></div></div></div>
+<div class="toast" id="toast">コピーしました</div>
+<script>
+const els=id=>document.getElementById(id);
+let CATALOG=null,currentData=null,currentSeries="",mode="reverse",currentCodeIndex=-1;
+const stateCache=new Map();
+const HISTORY_KEY="maruttoCodeHistoryV2";
+const FAVORITES_KEY="maruttoCodeFavoritesV2";
+
+/* データ取得は window.MaruttoData 経由。
+   認証あり(Firestore) / 認証なし(静的JSON) をここで吸収するため、
+   以下の検索ロジックは一切変更していません。 */
+async function init(){
+  CATALOG=await window.MaruttoData.loadCatalog();
+  CATALOG.manufacturers.forEach(m=>{
+    const o=new Option(m.series.length?m.name:`${m.name}（準備中）`,m.id);
+    o.disabled=!m.series.length; els("maker").add(o);
+  });
+  els("badge").textContent="7ブランク・34,390件対応";
+}
+els("maker").addEventListener("change",()=>{
+  const maker=CATALOG.manufacturers.find(x=>x.id===els("maker").value);
+  els("blank").innerHTML="";
+  if(!maker||!maker.series.length){els("blank").disabled=true;els("blank").add(new Option("先にメーカーを選択",""));hideWork();return}
+  els("blank").disabled=false;els("blank").add(new Option("キーブランクを選択",""));
+  maker.series.forEach(s=>els("blank").add(new Option(s.label||s.id,s.id)));
+  hideWork();
+});
+els("blank").addEventListener("change",async()=>{
+  const maker=CATALOG.manufacturers.find(x=>x.id===els("maker").value);
+  const item=maker?.series.find(x=>x.id===els("blank").value);
+  if(!item){hideWork();return}
+  await loadSeries(item);
+});
+async function loadSeries(item){
+  const makerId=els("maker").value;
+  currentSeries=item.id; hideResults(); els("loading").hidden=false;
+  try{
+    const cacheKey=item.file;
+    if(!stateCache.has(cacheKey)) stateCache.set(cacheKey,await window.MaruttoData.loadSeries(item.file,(a,b)=>{
+      els("loading").textContent=b>1?`データを読み込んでいます… (${a}/${b})`:"データを読み込んでいます…";
+    }));
+    currentData=stateCache.get(cacheKey);
+    currentData._catalogMakerId=makerId;
+    els("searchSection").hidden=false;els("infoArea").hidden=false;els("inputSection").hidden=false;
+    const rg=currentData.key_number_range;
+    els("rangeInfo").textContent=`${rg.start}〜${rg.end}`;
+    els("depthInfo").textContent=currentData.depths_mm.map(v=>Number(v).toFixed(1)).join(" / ");
+    if(currentData.depth_map) els("mapInfo").textContent=Object.entries(currentData.depth_map).map(([k,v])=>`${k}→${v}`).join("・");
+    else els("mapInfo").textContent=Object.entries(currentData.original_digit_map).map(([k,v])=>`${k}→${v}`).join("・");
+    els("warning").textContent="⚠️ "+currentData.warning_ja;
+    els("badge").textContent=`${currentData.manufacturer_name} ${currentData.series}・${currentData.records.length.toLocaleString()}件`;
+    resetSearch();
+  }catch(e){alert("データの読み込みに失敗しました。\n"+(e&&e.message?e.message:""));console.error(e)}
+  finally{els("loading").hidden=true;els("loading").textContent="データを読み込んでいます…"}
+}
+function hideWork(){currentData=null;currentSeries="";["searchSection","infoArea","inputSection"].forEach(id=>els(id).hidden=true);hideResults()}
+function hideResults(){els("resultsCard").hidden=true;els("empty").hidden=true;els("navbox").hidden=true}
+document.querySelectorAll(".mode").forEach(b=>b.addEventListener("click",()=>{mode=b.dataset.mode;document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x===b));resetSearch();els("q").focus()}));
+function resetSearch(){els("q").value="";hideResults();updateHint()}
+function updateHint(){
+  if(mode==="reverse"){els("inputTitle").textContent="配列を入力";els("q").placeholder=currentData?.input_type==="depth_or_digit"?"例：123 または 4.3-5.0-5.7":"例：2331";els("q").inputMode="decimal";els("hint").textContent=currentData?.input_type==="depth_or_digit"?"数字1〜4、または切削値をハイフン区切りで入力できます。途中一致で検索します。":"途中の数字でも検索できます。"}
+  else{els("inputTitle").textContent="キーコードを入力";els("q").placeholder="例：75000";els("q").inputMode="numeric";els("hint").textContent="コードの途中でも検索できます。完全一致時は前後移動できます。"}
+}
+function normalizeReverse(raw){
+  const t=raw.trim();if(/^[1-4]+$/.test(t))return t;
+  if(currentData.input_type!=="depth_or_digit")return null;
+  const vals=t.match(/\d+\.\d/g);if(!vals)return null;
+  const cleaned=t.replace(/[\s,／/・→>\-]/g,"");if(vals.join("")!==cleaned)return null;
+  const mapped=vals.map(v=>currentData.depth_map[v]);return mapped.every(Boolean)?mapped.join(""):null;
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function hi(t,s){return esc(t).split(esc(s)).join(`<mark>${esc(s)}</mark>`)}
+function search(){
+  if(!currentData)return;const raw=els("q").value.trim();if(!raw)return;
+  let query,rows;
+  if(mode==="reverse"){query=normalizeReverse(raw);if(!query){showEmpty();return}rows=currentData.records.filter(r=>r.pattern.includes(query))}
+  else{query=raw.replace(/\D/g,"");els("q").value=query;if(!query)return;rows=currentData.records.filter(r=>r.code.includes(query))}
+  addHistory({makerId:currentData._catalogMakerId||currentData.manufacturer_id,series:currentSeries,mode,query,at:Date.now()});
+  renderRows(rows,query);
+  if(mode==="code"&&rows.length===1&&rows[0].code===query){currentCodeIndex=currentData.records.findIndex(r=>r.code===query);updateNav()}else els("navbox").hidden=true;
+}
+function renderRows(rows,query){
+  hideResults();if(!rows.length){showEmpty();return}
+  const limit=rows.slice(0,300);els("caption").textContent=rows.length>300?`${rows.length.toLocaleString()}件中、先頭300件を表示`:`${rows.length.toLocaleString()}件`;
+  els("total").textContent=`${currentData.manufacturer_name} ${currentSeries} 検索結果`;
+  els("body").innerHTML=limit.map(r=>{
+    const key=favKey(r.code),on=isFavorite(key);
+    return `<tr><td class="code">${mode==="code"?hi(r.code,query):esc(r.code)}</td><td class="pattern">${mode==="reverse"?hi(r.pattern,query):esc(r.pattern)}</td><td class="orig">${esc(r.original)}</td><td><div class="actions"><button class="mini copy" data-code="${r.code}" data-pattern="${r.pattern}" data-original="${esc(r.original)}">コピー</button><button class="mini fav ${on?"on":""}" data-code="${r.code}">★</button></div></td></tr>`
+  }).join("");
+  els("body").querySelectorAll(".copy").forEach(b=>b.onclick=()=>copyText(`${currentSeries} ${b.dataset.code}：${b.dataset.pattern}（${b.dataset.original}）`));
+  els("body").querySelectorAll(".fav").forEach(b=>b.onclick=()=>toggleFavorite(b,b.dataset.code));
+  els("resultsCard").hidden=false;els("resultsCard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function showEmpty(){hideResults();els("empty").hidden=false}
+function updateNav(){
+  els("navbox").hidden=false;els("navCurrent").textContent=currentData.records[currentCodeIndex].code;
+  els("prevCode").disabled=currentCodeIndex<=0;els("nextCode").disabled=currentCodeIndex>=currentData.records.length-1;
+}
+function moveCode(delta){const n=currentCodeIndex+delta;if(n<0||n>=currentData.records.length)return;currentCodeIndex=n;const r=currentData.records[n];mode="code";document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x.dataset.mode==="code"));els("q").value=r.code;renderRows([r],r.code);updateNav()}
+els("prevCode").onclick=()=>moveCode(-1);els("nextCode").onclick=()=>moveCode(1);
+els("go").onclick=search;els("q").onkeydown=e=>{if(e.key==="Enter")search()};els("reset").onclick=()=>{resetSearch();els("q").focus()};
+els("keypadToggle").onclick=()=>{els("keypad").hidden=!els("keypad").hidden;els("keypadToggle").classList.toggle("active",!els("keypad").hidden)};
+els("keypad").querySelectorAll("button").forEach(b=>b.onclick=()=>{const k=b.dataset.key;if(k==="back")els("q").value=els("q").value.slice(0,-1);else if(k==="clear")els("q").value="";else if(k==="search")search();else if(k==="close"){els("keypad").hidden=true;els("keypadToggle").classList.remove("active")}else els("q").value+=k});
+function readStore(k){try{return JSON.parse(localStorage.getItem(k)||"[]")}catch{return[]}}
+function writeStore(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function addHistory(x){const a=readStore(HISTORY_KEY).filter(h=>!(h.series===x.series&&h.mode===x.mode&&h.query===x.query));a.unshift(x);writeStore(HISTORY_KEY,a.slice(0,30))}
+function favKey(code){return `${currentData?._catalogMakerId||currentData?.manufacturer_id}:${currentSeries}:${code}`}
+function isFavorite(k){return readStore(FAVORITES_KEY).some(x=>x.key===k)}
+function toggleFavorite(btn,code){let a=readStore(FAVORITES_KEY),key=favKey(code);if(a.some(x=>x.key===key)){a=a.filter(x=>x.key!==key);btn.classList.remove("on")}else{const r=currentData.records.find(x=>x.code===code);a.unshift({key,makerId:currentData._catalogMakerId||currentData.manufacturer_id,series:currentSeries,maker:currentData.manufacturer_name,code,pattern:r.pattern,original:r.original});btn.classList.add("on")}writeStore(FAVORITES_KEY,a)}
+els("historyBtn").onclick=()=>openDrawer("検索履歴",readStore(HISTORY_KEY).map(h=>({text:`${h.series}｜${h.mode==="code"?"コード":"逆引き"}｜${h.query}`,action:()=>restoreHistory(h)})));
+els("favoritesBtn").onclick=()=>openDrawer("お気に入り",readStore(FAVORITES_KEY).map(f=>({text:`${f.maker} ${f.series}｜${f.code}｜${f.pattern}`,action:()=>restoreFavorite(f)})));
+function openDrawer(title,items){els("drawerTitle").textContent=title;els("drawerList").innerHTML=items.length?items.map((x,i)=>`<div class="list-item"><div>${esc(x.text)}</div><button data-i="${i}">開く</button></div>`).join(""):`<p class="muted">まだありません。</p>`;els("drawerList").querySelectorAll("button").forEach(b=>b.onclick=items[+b.dataset.i].action);els("drawer").hidden=false}
+els("drawerClose").onclick=()=>els("drawer").hidden=true;els("drawer").onclick=e=>{if(e.target===els("drawer"))els("drawer").hidden=true};
+async function selectSeries(series,makerId=null){const makers=makerId?CATALOG.manufacturers.filter(m=>m.id===makerId):CATALOG.manufacturers;for(const m of makers){const s=m.series.find(x=>x.id===series);if(s){els("maker").value=m.id;els("maker").dispatchEvent(new Event("change"));els("blank").value=series;await loadSeries(s);return}}}
+async function restoreHistory(h){els("drawer").hidden=true;await selectSeries(h.series,h.makerId);mode=h.mode;document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x.dataset.mode===mode));updateHint();els("q").value=h.query;search()}
+async function restoreFavorite(f){els("drawer").hidden=true;await selectSeries(f.series,f.makerId);mode="code";document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x.dataset.mode==="code"));updateHint();els("q").value=f.code;search()}
+async function copyText(t){try{await navigator.clipboard.writeText(t)}catch{const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();document.execCommand("copy");a.remove()}els("toast").classList.add("show");setTimeout(()=>els("toast").classList.remove("show"),1200)}
+/* init() はここでは呼ばない。
+   認証が済んでから boot.js（type="module"）が呼び出す。 */
+window.__maruttoInit=init;
+</script>
+<script type="module" src="boot.js"></script>
+</body>
+</html>

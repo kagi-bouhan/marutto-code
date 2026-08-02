@@ -1,0 +1,25 @@
+{
+  "name": "まるっとコード",
+  "short_name": "まるっとコード",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f7fa",
+  "theme_color": "#1264a3",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "description": "自動車キーコードのコード検索・配列逆引きアプリ",
+  "scope": "./"
+}
