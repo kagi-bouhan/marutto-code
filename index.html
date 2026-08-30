@@ -29,6 +29,18 @@ select,input{width:100%;height:54px;border:2px solid #cfdee8;border-radius:13px;
 .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}.whoami{font-size:12px;color:#8095a5;font-weight:800;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:700px){.whoami{display:none}}
 @media(max-width:700px){.wrap{padding:13px 11px 34px}.header{margin-bottom:11px}.logo{width:190px;max-width:70vw}.badge{display:none}.section{padding:16px}.grid2{grid-template-columns:1fr}.search-row{grid-template-columns:1fr}.search-btn{height:52px}.info{grid-template-columns:1fr 1fr}.info div{padding:12px}.info div:last-child{grid-column:1/-1;border-top:1px solid #e5edf2}.orig,.orig-head{display:none}th,td{padding:13px 10px}.actions{gap:5px}.mini{padding:8px}.keypad{grid-template-columns:repeat(4,1fr)}}
+/* ---- M382 H/L逆引き（2026-08-30 追加） ---- */
+.mode-row.has-hl{grid-template-columns:1fr 1fr 1fr}
+.hl-cell{color:#0f5e96;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:17px;font-weight:850;letter-spacing:.1em}
+.hl-warn{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:999px;background:#fff2f1;color:#b92f28;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;font-size:11px;font-weight:800;letter-spacing:0;vertical-align:middle}
+@media(max-width:700px){
+  .mode-row.has-hl .mode{font-size:13px;padding:0 4px}
+  /* H/L逆引き中は3列目（H/L）をスマホでも必ず表示する */
+  body.hl-mode .orig,body.hl-mode .orig-head{display:table-cell}
+  body.hl-mode th,body.hl-mode td{padding:12px 7px}
+  body.hl-mode .code,body.hl-mode .pattern{font-size:16px}
+  body.hl-mode .hl-cell{font-size:15px;letter-spacing:.06em}
+}
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -75,12 +87,12 @@ if("serviceWorker" in navigator){
     </div>
     <div class="section" id="searchSection" hidden>
       <h2 class="step-title"><span class="step-num">2</span>検索方法を選択</h2>
-      <div class="mode-row"><button class="mode active" data-mode="reverse" type="button">逆引き検索</button><button class="mode" data-mode="code" type="button">コード検索</button></div>
+      <div class="mode-row" id="modeRow"><button class="mode active" data-mode="reverse" type="button">逆引き検索</button><button class="mode" data-mode="hl" id="hlModeBtn" type="button" hidden>H/L逆引き</button><button class="mode" data-mode="code" type="button">コード検索</button></div>
     </div>
     <div class="info" id="infoArea" hidden>
-      <div><small>対象範囲</small><b id="rangeInfo"></b></div>
-      <div><small>段差</small><b id="depthInfo"></b></div>
-      <div><small>変換</small><b id="mapInfo"></b></div>
+      <div><small id="rangeLabel">対象範囲</small><b id="rangeInfo"></b></div>
+      <div><small id="depthLabel">段差</small><b id="depthInfo"></b></div>
+      <div><small id="mapLabel">変換</small><b id="mapInfo"></b></div>
     </div>
     <div class="section" id="inputSection" hidden>
       <h2 class="step-title"><span class="step-num">3</span><span id="inputTitle">配列を入力</span></h2>
@@ -92,6 +104,7 @@ if("serviceWorker" in navigator){
         <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button><button data-key="4">4</button>
         <button data-key="5">5</button><button data-key="6">6</button><button data-key="7">7</button><button data-key="8">8</button>
         <button data-key="9">9</button><button data-key="0">0</button><button class="danger" data-key="back">⌫</button><button class="danger" data-key="clear">クリア</button>
+        <button class="hl-key wide" data-key="H" hidden>H</button><button class="hl-key wide" data-key="L" hidden>L</button>
         <button class="wide go" data-key="search">検索</button><button class="wide" data-key="close">閉じる</button>
       </div>
     </div>
@@ -100,7 +113,7 @@ if("serviceWorker" in navigator){
   <div class="card" id="resultsCard" hidden>
     <div class="results-head"><div><small id="caption">検索結果</small><h2 id="total"></h2></div><button id="reset" class="reset-btn" type="button">検索し直す</button></div>
     <div id="navbox" class="navbox" hidden><button id="prevCode" type="button">← 前のコード</button><span id="navCurrent" class="nav-current"></span><button id="nextCode" type="button">次のコード →</button></div>
-    <div class="table-wrap"><table><thead><tr><th>キーコード</th><th>配列</th><th class="orig-head">元データ</th><th></th></tr></thead><tbody id="body"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>キーコード</th><th id="patternHead">配列</th><th id="origHead" class="orig-head">元データ</th><th></th></tr></thead><tbody id="body"></tbody></table></div>
   </div>
   <div class="card empty" id="empty" hidden><h2>該当データがありません</h2><p>入力内容を確認してください。</p></div>
 </div>
@@ -108,7 +121,11 @@ if("serviceWorker" in navigator){
 <div class="toast" id="toast">コピーしました</div>
 <script>
 const els=id=>document.getElementById(id);
-let CATALOG=null,currentData=null,currentSeries="",mode="reverse",currentCodeIndex=-1;
+let CATALOG=null,currentData=null,currentSeries="",mode="reverse",currentCodeIndex=-1,hlData=null;
+/* M382 H/L逆引き用データ。catalog には載せず、M382選択時だけ別読みする。
+   認証あり(Firestore)なら series/m382_hl、認証なしなら data/m382_hl.json を読む。 */
+const HL_FILE="data/m382_hl.json";
+const HL_MAKER="toyota", HL_SERIES="M382";
 const stateCache=new Map();
 const HISTORY_KEY="maruttoCodeHistoryV2";
 const FAVORITES_KEY="maruttoCodeFavoritesV2";
@@ -122,7 +139,7 @@ async function init(){
     const o=new Option(m.series.length?m.name:`${m.name}（準備中）`,m.id);
     o.disabled=!m.series.length; els("maker").add(o);
   });
-  els("badge").textContent="7ブランク・34,390件対応";
+  els("badge").textContent="7ブランク・34,390件＋H/L 6,200件";
 }
 els("maker").addEventListener("change",()=>{
   const maker=CATALOG.manufacturers.find(x=>x.id===els("maker").value);
@@ -156,17 +173,57 @@ async function loadSeries(item){
     else els("mapInfo").textContent=Object.entries(currentData.original_digit_map).map(([k,v])=>`${k}→${v}`).join("・");
     els("warning").textContent="⚠️ "+currentData.warning_ja;
     els("badge").textContent=`${currentData.manufacturer_name} ${currentData.series}・${currentData.records.length.toLocaleString()}件`;
+    /* H/L逆引きは トヨタ M382 のときだけ出す（他ブランクは従来どおり） */
+    const hlAvailable=(makerId===HL_MAKER&&item.id===HL_SERIES);
+    els("hlModeBtn").hidden=!hlAvailable;
+    els("modeRow").classList.toggle("has-hl",hlAvailable);
+    if(!hlAvailable&&mode==="hl") setMode("reverse");
     resetSearch();
   }catch(e){alert("データの読み込みに失敗しました。\n"+(e&&e.message?e.message:""));console.error(e)}
   finally{els("loading").hidden=true;els("loading").textContent="データを読み込んでいます…"}
 }
-function hideWork(){currentData=null;currentSeries="";["searchSection","infoArea","inputSection"].forEach(id=>els(id).hidden=true);hideResults()}
+function hideWork(){currentData=null;currentSeries="";els("hlModeBtn").hidden=true;els("modeRow").classList.remove("has-hl");if(mode==="hl")setMode("reverse");["searchSection","infoArea","inputSection"].forEach(id=>els(id).hidden=true);hideResults()}
+function setMode(m){mode=m;document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x.dataset.mode===m))}
 function hideResults(){els("resultsCard").hidden=true;els("empty").hidden=true;els("navbox").hidden=true}
 document.querySelectorAll(".mode").forEach(b=>b.addEventListener("click",()=>{mode=b.dataset.mode;document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x===b));resetSearch();els("q").focus()}));
 function resetSearch(){els("q").value="";hideResults();updateHint()}
 function updateHint(){
+  const hlKeys=document.querySelectorAll(".hl-key");
+  document.body.classList.toggle("hl-mode",mode==="hl");
   if(mode==="reverse"){els("inputTitle").textContent="配列を入力";els("q").placeholder=currentData?.input_type==="depth_or_digit"?"例：123 または 4.3-5.0-5.7":"例：2331";els("q").inputMode="decimal";els("hint").textContent=currentData?.input_type==="depth_or_digit"?"数字1〜4、または切削値をハイフン区切りで入力できます。途中一致で検索します。":"途中の数字でも検索できます。"}
+  else if(mode==="hl"){els("inputTitle").textContent="段差数字とH/Lを入力";els("q").placeholder="例：2L2L3H4H";els("q").inputMode="text";els("hint").textContent="「2L2L3H4H」／「2234 LLHH」／数字だけ「2234」／H/Lだけ「LLHH」に対応。いずれも途中の位置から一致で検索します。"}
   else{els("inputTitle").textContent="キーコードを入力";els("q").placeholder="例：75000";els("q").inputMode="numeric";els("hint").textContent="コードの途中でも検索できます。完全一致時は前後移動できます。"}
+  hlKeys.forEach(x=>x.hidden=(mode!=="hl"));
+  els("patternHead").textContent=mode==="hl"?"段差":"配列";
+  els("origHead").textContent=mode==="hl"?"H/L":"元データ";
+  refreshInfoArea();
+}
+/* 情報エリア（対象範囲／段差／変換）は表示中のデータに合わせる。
+   H/L逆引き中に従来M382の 50000〜69999 を出したままにすると誤読するため。 */
+function refreshInfoArea(){
+  if(mode==="hl"){
+    els("rangeLabel").textContent="対象範囲（H/L）";
+    els("depthLabel").textContent="位置数";
+    els("mapLabel").textContent="H/L";
+    if(hlData){
+      els("rangeInfo").textContent=`${hlData.key_number_range.start}〜${hlData.key_number_range.end}`;
+      els("depthInfo").textContent=`${hlData.positions}位置`;
+      els("mapInfo").textContent="H＝ハイ／L＝ロー";
+      els("warning").textContent="⚠️ "+hlData.warning_ja;
+    }else{
+      els("rangeInfo").textContent="—";els("depthInfo").textContent="—";els("mapInfo").textContent="H＝ハイ／L＝ロー";
+    }
+    return;
+  }
+  els("rangeLabel").textContent="対象範囲";els("depthLabel").textContent="段差";els("mapLabel").textContent="変換";
+  if(!currentData)return;
+  const rg=currentData.key_number_range;
+  els("rangeInfo").textContent=`${rg.start}〜${rg.end}`;
+  els("depthInfo").textContent=currentData.depths_mm.map(v=>Number(v).toFixed(1)).join(" / ");
+  els("mapInfo").textContent=currentData.depth_map
+    ?Object.entries(currentData.depth_map).map(([k,v])=>`${k}→${v}`).join("・")
+    :Object.entries(currentData.original_digit_map).map(([k,v])=>`${k}→${v}`).join("・");
+  els("warning").textContent="⚠️ "+currentData.warning_ja;
 }
 function normalizeReverse(raw){
   const t=raw.trim();if(/^[1-4]+$/.test(t))return t;
@@ -175,22 +232,103 @@ function normalizeReverse(raw){
   const cleaned=t.replace(/[\s,／/・→>\-]/g,"");if(vals.join("")!==cleaned)return null;
   const mapped=vals.map(v=>currentData.depth_map[v]);return mapped.every(Boolean)?mapped.join(""):null;
 }
+/* =========================================================================
+   M382 H/L逆引き（2026-08-30 追加）
+   -------------------------------------------------------------------------
+   位置ズレの誤検索を防ぐため、段差数字とH/Lを1文字ずつ交互に並べた文字列
+   （例 pattern 2234 / hl LLHH → "2L2L3H4H"）に対して部分一致をとる。
+   数字(1〜4)とH/L(H,L)は文字集合が重ならないので、交互文字列への部分一致は
+   必ず「位置の先頭」で揃った一致になる（数字はかならず偶数番目にしか来ない）。
+   「数字がどこかにあり、H/Lもどこかにある」というAND検索にはならない。
+   ========================================================================= */
+async function ensureHLData(){
+  if(hlData)return hlData;
+  els("loading").hidden=false;
+  try{
+    hlData=await window.MaruttoData.loadSeries(HL_FILE,(a,b)=>{
+      els("loading").textContent=b>1?`H/Lデータを読み込んでいます… (${a}/${b})`:"H/Lデータを読み込んでいます…";
+    });
+  }finally{els("loading").hidden=true;els("loading").textContent="データを読み込んでいます…"}
+  return hlData;
+}
+/** 交互文字列を一度だけ作って保持する */
+function hlIndex(data){
+  if(!data._combined){
+    data._combined=data.records.map(r=>{
+      const hl=r.hl||"",n=Math.min(r.pattern.length,hl.length);let s="";
+      for(let i=0;i<n;i++)s+=r.pattern[i]+hl[i];
+      return s;
+    });
+  }
+  return data._combined;
+}
+/** 全角→半角・大文字化 */
+function hlNormalize(s){
+  return String(s).replace(/[０-９Ａ-Ｚａ-ｚ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).toUpperCase();
+}
+/** 入力を { kind, label, needle } に解釈する。解釈できなければ null */
+function parseHLQuery(raw){
+  const t=hlNormalize(raw).trim();
+  if(!t)return null;
+  // 「2234 LLHH」「LLHH / 2234」のように分けて入れた場合
+  const parts=t.split(/[\s\/／,，、|｜]+/).filter(Boolean);
+  if(parts.length===2){
+    let a=parts[0],b=parts[1];
+    if(/^[HL]+$/.test(a)&&/^[1-4]+$/.test(b)){const w=a;a=b;b=w}
+    if(/^[1-4]+$/.test(a)&&/^[HL]+$/.test(b)&&a.length===b.length){
+      return {kind:"paired",label:`${a} / ${b}`,needle:[...a].map((d,i)=>d+b[i]).join("")};
+    }
+    return null;
+  }
+  if(parts.length>2)return null;
+  const q=t.replace(/[\s\-_.・]/g,"");
+  if(/^[1-4]+$/.test(q))return {kind:"digits",label:q,needle:q};        // 数字だけ
+  if(/^[HL]+$/.test(q))return {kind:"hl",label:q,needle:q};             // H/Lだけ
+  if(/^(?:[1-4][HL])+$/.test(q))return {kind:"paired",label:q,needle:q};// 2L2L3H4H
+  return null;
+}
+function searchHL(raw,data){
+  const p=parseHLQuery(raw);
+  if(!p)return null;
+  let rows;
+  if(p.kind==="digits")     rows=data.records.filter(r=>r.pattern.includes(p.needle));
+  else if(p.kind==="hl")    rows=data.records.filter(r=>(r.hl||"").includes(p.needle));
+  else{const idx=hlIndex(data);rows=data.records.filter((r,i)=>idx[i].includes(p.needle))}
+  return {kind:p.kind,query:p.label,needle:p.needle,rows};
+}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function hi(t,s){return esc(t).split(esc(s)).join(`<mark>${esc(s)}</mark>`)}
-function search(){
+async function search(){
   if(!currentData)return;const raw=els("q").value.trim();if(!raw)return;
-  let query,rows;
+  let query,rows,dataForRender=currentData,hlKind=null;
   if(mode==="reverse"){query=normalizeReverse(raw);if(!query){showEmpty();return}rows=currentData.records.filter(r=>r.pattern.includes(query))}
+  else if(mode==="hl"){
+    let d;
+    try{d=await ensureHLData()}
+    catch(e){console.error(e);alert("H/Lデータの読み込みに失敗しました。\n"+(e&&e.message?e.message:""));return}
+    refreshInfoArea();
+    const res=searchHL(raw,d);
+    if(!res){showEmpty();return}
+    query=res.query;rows=res.rows;hlKind=res.kind;dataForRender=d;
+  }
   else{query=raw.replace(/\D/g,"");els("q").value=query;if(!query)return;rows=currentData.records.filter(r=>r.code.includes(query))}
   addHistory({makerId:currentData._catalogMakerId||currentData.manufacturer_id,series:currentSeries,mode,query,at:Date.now()});
-  renderRows(rows,query);
+  renderRows(rows,query,dataForRender,hlKind);
   if(mode==="code"&&rows.length===1&&rows[0].code===query){currentCodeIndex=currentData.records.findIndex(r=>r.code===query);updateNav()}else els("navbox").hidden=true;
 }
-function renderRows(rows,query){
+function renderRows(rows,query,dataForRender=currentData,hlKind=null){
   hideResults();if(!rows.length){showEmpty();return}
   const limit=rows.slice(0,300);els("caption").textContent=rows.length>300?`${rows.length.toLocaleString()}件中、先頭300件を表示`:`${rows.length.toLocaleString()}件`;
-  els("total").textContent=`${currentData.manufacturer_name} ${currentSeries} 検索結果`;
+  els("total").textContent=`${dataForRender.manufacturer_name} ${currentSeries}${mode==="hl"?" H/L":""} 検索結果`;
   els("body").innerHTML=limit.map(r=>{
+    if(mode==="hl"){
+      const hl=r.hl||"";
+      /* 8文字でない元データは推測で直さず、その旨だけ表示する */
+      const warn=hl.length!==dataForRender.positions?`<span class="hl-warn">${hl.length}文字</span>`:"";
+      const pat=hlKind==="digits"?hi(r.pattern,query):esc(r.pattern);
+      const hlc=hlKind==="hl"?hi(hl,query):esc(hl);
+      return `<tr><td class="code">${esc(r.code)}</td><td class="pattern">${pat}</td><td class="orig hl-cell">${hlc}${warn}</td><td><div class="actions"><button class="mini copy" data-code="${esc(r.code)}" data-pattern="${esc(r.pattern)}" data-original="${esc(hl)}">コピー</button></div></td></tr>`
+    }
     const key=favKey(r.code),on=isFavorite(key);
     return `<tr><td class="code">${mode==="code"?hi(r.code,query):esc(r.code)}</td><td class="pattern">${mode==="reverse"?hi(r.pattern,query):esc(r.pattern)}</td><td class="orig">${esc(r.original)}</td><td><div class="actions"><button class="mini copy" data-code="${r.code}" data-pattern="${r.pattern}" data-original="${esc(r.original)}">コピー</button><button class="mini fav ${on?"on":""}" data-code="${r.code}">★</button></div></td></tr>`
   }).join("");
@@ -214,12 +352,12 @@ function addHistory(x){const a=readStore(HISTORY_KEY).filter(h=>!(h.series===x.s
 function favKey(code){return `${currentData?._catalogMakerId||currentData?.manufacturer_id}:${currentSeries}:${code}`}
 function isFavorite(k){return readStore(FAVORITES_KEY).some(x=>x.key===k)}
 function toggleFavorite(btn,code){let a=readStore(FAVORITES_KEY),key=favKey(code);if(a.some(x=>x.key===key)){a=a.filter(x=>x.key!==key);btn.classList.remove("on")}else{const r=currentData.records.find(x=>x.code===code);a.unshift({key,makerId:currentData._catalogMakerId||currentData.manufacturer_id,series:currentSeries,maker:currentData.manufacturer_name,code,pattern:r.pattern,original:r.original});btn.classList.add("on")}writeStore(FAVORITES_KEY,a)}
-els("historyBtn").onclick=()=>openDrawer("検索履歴",readStore(HISTORY_KEY).map(h=>({text:`${h.series}｜${h.mode==="code"?"コード":"逆引き"}｜${h.query}`,action:()=>restoreHistory(h)})));
+els("historyBtn").onclick=()=>openDrawer("検索履歴",readStore(HISTORY_KEY).map(h=>({text:`${h.series}｜${h.mode==="code"?"コード":h.mode==="hl"?"H/L逆引き":"逆引き"}｜${h.query}`,action:()=>restoreHistory(h)})));
 els("favoritesBtn").onclick=()=>openDrawer("お気に入り",readStore(FAVORITES_KEY).map(f=>({text:`${f.maker} ${f.series}｜${f.code}｜${f.pattern}`,action:()=>restoreFavorite(f)})));
 function openDrawer(title,items){els("drawerTitle").textContent=title;els("drawerList").innerHTML=items.length?items.map((x,i)=>`<div class="list-item"><div>${esc(x.text)}</div><button data-i="${i}">開く</button></div>`).join(""):`<p class="muted">まだありません。</p>`;els("drawerList").querySelectorAll("button").forEach(b=>b.onclick=items[+b.dataset.i].action);els("drawer").hidden=false}
 els("drawerClose").onclick=()=>els("drawer").hidden=true;els("drawer").onclick=e=>{if(e.target===els("drawer"))els("drawer").hidden=true};
 async function selectSeries(series,makerId=null){const makers=makerId?CATALOG.manufacturers.filter(m=>m.id===makerId):CATALOG.manufacturers;for(const m of makers){const s=m.series.find(x=>x.id===series);if(s){els("maker").value=m.id;els("maker").dispatchEvent(new Event("change"));els("blank").value=series;await loadSeries(s);return}}}
-async function restoreHistory(h){els("drawer").hidden=true;await selectSeries(h.series,h.makerId);mode=h.mode;document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x.dataset.mode===mode));updateHint();els("q").value=h.query;search()}
+async function restoreHistory(h){els("drawer").hidden=true;await selectSeries(h.series,h.makerId);if(h.mode==="hl"&&els("hlModeBtn").hidden)return;setMode(h.mode);updateHint();els("q").value=h.query;search()}
 async function restoreFavorite(f){els("drawer").hidden=true;await selectSeries(f.series,f.makerId);mode="code";document.querySelectorAll(".mode").forEach(x=>x.classList.toggle("active",x.dataset.mode==="code"));updateHint();els("q").value=f.code;search()}
 async function copyText(t){try{await navigator.clipboard.writeText(t)}catch{const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();document.execCommand("copy");a.remove()}els("toast").classList.add("show");setTimeout(()=>els("toast").classList.remove("show"),1200)}
 /* init() はここでは呼ばない。
