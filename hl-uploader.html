@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>まるっとコード データ取り込み（M382 H/L）</title>
+<!--
+  tools/hl-uploader.html
+  -----------------------------------------------------------------
+  M382 H/L データを Cloud Firestore へ取り込むための管理用ページ。
+
+  ・アプリ本体（index.html）からはリンクしていません。管理者が直接URLを開いて使います。
+  ・このページ自体は誰でも開けますが、何もできません。
+      ログイン … @airulock.net のGoogleアカウントのみ
+      書き込み … Firestore セキュリティルールがサーバー側で判定
+    ブラウザのJSを書き換えても、ルールを通らなければ1バイトも書けません。
+
+  ・書き込み先は shared/data/secure-store.js が読む形に合わせています。
+      /series/m382_hl            { meta, chunks, version }
+      /series/m382_hl/parts/000  { json }
+
+  ・version は保存のたびに +1 されます。
+    これで各端末の IndexedDB キャッシュ（m382_hl@vN）が自動で入れ替わります。
+  -----------------------------------------------------------------
+-->
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;color:#183247;background:#f3f7fa}
+*{box-sizing:border-box}body{margin:0;background:#f3f7fa}button,input,select{font:inherit}
+.wrap{max-width:820px;margin:0 auto;padding:22px 16px 70px}
+h1{font-size:21px;margin:0 0 6px}
+.sub{color:#6f8798;font-size:13px;margin:0 0 20px;line-height:1.6}
+.card{background:#fff;border:1px solid #dce7ef;border-radius:18px;box-shadow:0 10px 30px rgba(32,72,103,.08);margin-bottom:16px;overflow:hidden}
+.card[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.sec{padding:20px}
+.sec+.sec{border-top:1px solid #e5edf2}
+.step{display:flex;align-items:center;gap:10px;margin:0 0 13px;font-size:17px;font-weight:900}
+.num{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;background:#1769a6;color:#fff;font-size:14px;font-weight:900;flex:none}
+.num.done{background:#247044}
+button.main{border:0;border-radius:13px;background:#1769a6;color:#fff;font-size:16px;font-weight:900;padding:15px 22px;box-shadow:0 8px 18px rgba(23,105,166,.22)}
+button.go{background:#d94139;box-shadow:0 8px 18px rgba(217,65,57,.22)}
+button.main:disabled{background:#b7c6d1;box-shadow:none}
+button.ghost{border:1px solid #bfd0dc;background:#fff;border-radius:11px;padding:9px 13px;color:#2d526d;font-weight:800}
+.who{margin-top:11px;font-size:13px;color:#247044;font-weight:800}
+input[type=file]{width:100%;padding:15px;border:2px dashed #cfdee8;border-radius:13px;background:#fbfdff}
+.note{margin-top:11px;padding:11px 13px;border-radius:11px;background:#fff6df;color:#775915;font-size:13px;font-weight:700;line-height:1.6}
+.err{background:#fff2f1;color:#b92f28}
+.ok{background:#e7f4eb;color:#247044}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+th,td{padding:9px 10px;border-bottom:1px solid #edf2f6;text-align:left}
+th{background:#f8fbfd;color:#6e8596;font-size:12px;width:40%}
+td b{font-size:15px}
+.bad{color:#b92f28;font-weight:900}
+.log{margin-top:13px;padding:13px;border-radius:11px;background:#0f2536;color:#cfe3f2;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.75;white-space:pre-wrap;word-break:break-word;max-height:340px;overflow:auto}
+.log:empty{display:none}
+.hide{display:none}
+@media(max-width:640px){.wrap{padding:16px 12px 50px}.sec{padding:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>まるっとコード データ取り込み</h1>
+  <p class="sub">
+    トヨタ M382 の「H/L逆引き」用データを更新します。<br>
+    この画面は管理用です。ここで入れたデータだけが、アプリの「H/L逆引き」で使われます。<br>
+    <b>従来のM382（50000〜69999）や他のキーブランクには一切影響しません。</b>
+  </p>
+
+  <!-- 1. ログイン -->
+  <div class="card" id="card1">
+    <div class="sec">
+      <div class="step"><span class="num" id="n1">1</span>ログイン</div>
+      <button class="main" id="loginBtn" type="button">Googleでログイン</button>
+      <div class="who hide" id="who"></div>
+      <div class="note err hide" id="loginErr"></div>
+    </div>
+  </div>
+
+  <!-- 2. ファイル -->
+  <div class="card" id="card2" aria-disabled="true">
+    <div class="sec">
+      <div class="step"><span class="num" id="n2">2</span>ファイルを選ぶ</div>
+      <input type="file" id="file" accept=".xlsx,.xlsm,.json">
+      <div class="note">
+        Excel（.xlsx）でも JSON（.json）でも構いません。<br>
+        Excelの場合は <b>A列＝コード番号／B列＝段差数字8桁／C列＝H/L</b> の並びで読み取ります。見出し行があっても飛ばします。
+      </div>
+      <div class="note err hide" id="fileErr"></div>
+    </div>
+  </div>
+
+  <!-- 3. 確認 -->
+  <div class="card hide" id="card3">
+    <div class="sec">
+      <div class="step"><span class="num" id="n3">3</span>中身を確認</div>
+      <table id="summary"></table>
+      <div id="anomalyBox"></div>
+    </div>
+  </div>
+
+  <!-- 4. 保存 -->
+  <div class="card hide" id="card4">
+    <div class="sec">
+      <div class="step"><span class="num" id="n4">4</span>保存する</div>
+      <p class="sub" style="margin:0 0 13px">
+        上の内容でよければ、下のボタンを押してください。<br>
+        押すと、いまFirestoreに入っているM382 H/Lデータが<b>この内容に置き換わります</b>。
+      </p>
+      <button class="main go" id="uploadBtn" type="button">Firestoreに保存する</button>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { AUTH_CONFIG } from '../shared/auth/auth-config.js';
+import { initAuth, signIn, isAllowed, watchUser, getFirebaseApp }
+  from '../shared/auth/auth-client.js';
+import { getFirestore, doc, getDoc, collection, getDocs, writeBatch }
+  from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+const SERIES_KEY = 'm382_hl';
+const POSITIONS  = 8;
+/** 1チャンクの上限。Firestore の1ドキュメント上限（1MiB）に余裕をみる。 */
+const CHUNK_BYTES = 700 * 1024;
+
+/** records 以外の付随情報。secure-store.js が meta として読む。 */
+const META_BASE = {
+  schema_version: 1,
+  manufacturer_id: 'toyota',
+  manufacturer_name: 'トヨタ',
+  series: 'M382 H/L',
+  positions: POSITIONS,
+  input_type: 'digit_hl',
+  pattern_digits: ['1', '2', '3', '4'],
+  warning_ja: 'H/Lデータは提供されたExcelを元にしています。'
+};
+
+const $ = (id) => document.getElementById(id);
+let parsed = null;
+
+function say(msg, cls) {
+  const el = $('log');
+  el.textContent += (el.textContent ? '\n' : '') + msg;
+  el.scrollTop = el.scrollHeight;
+  if (cls) console.log(msg);
+}
+function show(el) { el.classList.remove('hide'); }
+function hide(el) { el.classList.add('hide'); }
+function setErr(el, msg) { el.textContent = msg; show(el); }
+
+/* ================================ 1. ログイン ================================ */
+
+initAuth(AUTH_CONFIG);
+
+watchUser((user, allowed) => {
+  if (user && allowed) {
+    $('n1').classList.add('done');
+    $('n1').textContent = '✓';
+    $('who').textContent = 'ログイン中：' + user.email;
+    show($('who'));
+    $('loginBtn').textContent = 'ログイン済み';
+    $('loginBtn').disabled = true;
+    $('card2').setAttribute('aria-disabled', 'false');
+    hide($('loginErr'));
+  } else if (user && !allowed) {
+    setErr($('loginErr'),
+      'このアカウント（' + (user.email || '') + '）ではご利用いただけません。\n' +
+      '@' + AUTH_CONFIG.allowedDomain + ' のアカウントでログインしてください。');
+  }
+});
+
+$('loginBtn').onclick = async () => {
+  hide($('loginErr'));
+  try { await signIn(); }
+  catch (e) { setErr($('loginErr'), 'ログインできませんでした：\n' + (e && e.message ? e.message : e)); }
+};
+
+/* ============================== 2. ファイル読み込み ============================== */
+
+/** SheetJS を必要になったときだけ読み込む */
+async function loadSheetJs() {
+  if (window.XLSX) return window.XLSX;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Excelを読むための部品を取得できませんでした。通信環境をご確認ください。'));
+    document.head.appendChild(s);
+  });
+  return window.XLSX;
+}
+
+/** 全角→半角・大文字化・空白除去 */
+function norm(v) {
+  return String(v == null ? '' : v)
+    .replace(/[０-９Ａ-Ｚａ-ｚ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/\s/g, '')
+    .toUpperCase();
+}
+
+async function readRecords(file) {
+  const name = file.name.toLowerCase();
+
+  if (name.endsWith('.json')) {
+    const obj = JSON.parse(await file.text());
+    if (!Array.isArray(obj.records)) throw new Error('このJSONには records が入っていません。');
+    return obj.records.map((r) => ({
+      code: norm(r.code), pattern: norm(r.pattern), hl: norm(r.hl)
+    }));
+  }
+
+  const XLSX = await loadSheetJs();
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, raw: false });
+
+  const out = [];
+  for (const row of rows) {
+    const code = norm(row[0]), pattern = norm(row[1]), hl = norm(row[2]);
+    if (!code || !pattern) continue;
+    if (!/^[0-9]+$/.test(code)) continue;   // 見出し行などを飛ばす
+    out.push({ code, pattern, hl });
+  }
+  if (!out.length) throw new Error('データ行が見つかりませんでした。A列＝コード／B列＝段差数字／C列＝H/L の並びをご確認ください。');
+  return out;
+}
+
+function inspect(records) {
+  const codes = records.map((r) => r.code);
+  const nums = codes.map(Number).filter((n) => !isNaN(n));
+  const seen = new Set(), dups = [];
+  for (const c of codes) { if (seen.has(c)) dups.push(c); else seen.add(c); }
+
+  const badPattern = records.filter((r) => !/^[1-4]{8}$/.test(r.pattern));
+  const badHlChar  = records.filter((r) => !/^[HL]*$/.test(r.hl));
+  const badHlLen   = records.filter((r) => r.hl.length !== POSITIONS);
+
+  return {
+    count: records.length,
+    min: Math.min.apply(null, nums),
+    max: Math.max.apply(null, nums),
+    dups, badPattern, badHlChar, badHlLen
+  };
+}
+
+function renderSummary(rec, info) {
+  const row = (k, v, bad) =>
+    `<tr><th>${k}</th><td class="${bad ? 'bad' : ''}"><b>${v}</b></td></tr>`;
+  $('summary').innerHTML =
+    row('件数', info.count.toLocaleString() + ' 件') +
+    row('コード範囲', info.min + ' 〜 ' + info.max) +
+    row('コードの重複', info.dups.length ? info.dups.length + ' 件（' + info.dups.slice(0, 5).join(', ') + ' …）' : 'なし', info.dups.length) +
+    row('段差数字が8桁でない', info.badPattern.length ? info.badPattern.length + ' 件' : 'なし', info.badPattern.length) +
+    row('H/L に H・L 以外の文字', info.badHlChar.length ? info.badHlChar.length + ' 件' : 'なし', info.badHlChar.length) +
+    row('H/L が8文字でない', info.badHlLen.length ? info.badHlLen.length + ' 件' : 'なし', info.badHlLen.length);
+
+  const box = $('anomalyBox');
+  const listed = info.badHlLen.concat(info.badHlChar).slice(0, 30);
+  if (listed.length) {
+    box.innerHTML =
+      '<div class="note">' +
+      '<b>下のデータは推測で直しません。元のまま保存します。</b><br>' +
+      'アプリの検索結果では、この行に赤い文字数バッジが付いて現場で気づけるようになっています。' +
+      '</div>' +
+      '<table><tr><th>コード</th><th>段差数字</th><th>H/L</th><th>文字数</th></tr>' +
+      listed.map((r) =>
+        `<tr><td>${r.code}</td><td>${r.pattern}</td><td>${r.hl}</td><td class="bad">${r.hl.length}</td></tr>`
+      ).join('') + '</table>';
+  } else {
+    box.innerHTML = '<div class="note ok">問題は見つかりませんでした。全件そろっています。</div>';
+  }
+}
+
+$('file').onchange = async () => {
+  hide($('fileErr'));
+  hide($('card3'));
+  hide($('card4'));
+  parsed = null;
+  const f = $('file').files[0];
+  if (!f) return;
+  try {
+    const records = await readRecords(f);
+    const info = inspect(records);
+
+    if (info.dups.length)      throw new Error('コードが重複しています（' + info.dups.length + '件）。元の表をご確認ください。');
+    if (info.badPattern.length) throw new Error('段差数字が8桁でない行が ' + info.badPattern.length + ' 件あります。元の表をご確認ください。');
+
+    parsed = { records, info, fileName: f.name };
+    renderSummary(records, info);
+    $('n2').classList.add('done'); $('n2').textContent = '✓';
+    show($('card3'));
+    show($('card4'));
+    $('log').textContent = '';
+    $('uploadBtn').disabled = false;
+    $('card3').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    setErr($('fileErr'), '読み込めませんでした：\n' + (e && e.message ? e.message : e));
+  }
+};
+
+/* ============================== 3. Firestore へ保存 ============================== */
+
+function chunk(records) {
+  const out = [];
+  let cur = [], bytes = 2;
+  const enc = new TextEncoder();
+  for (const r of records) {
+    const b = enc.encode(JSON.stringify(r)).length + 1;
+    if (cur.length && bytes + b > CHUNK_BYTES) { out.push(cur); cur = []; bytes = 2; }
+    cur.push(r); bytes += b;
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+$('uploadBtn').onclick = async () => {
+  if (!parsed) return;
+  const n = parsed.records.length.toLocaleString();
+  if (!confirm('M382 H/L データを ' + n + ' 件で置き換えます。よろしいですか？')) return;
+
+  $('uploadBtn').disabled = true;
+  $('log').textContent = '';
+  try {
+    const db = getFirestore(getFirebaseApp());
+    const headRef = doc(db, 'series', SERIES_KEY);
+
+    say('いまのデータを確認しています…');
+    let prevVersion = 0, prevCount = null;
+    const prev = await getDoc(headRef);
+    if (prev.exists()) {
+      prevVersion = prev.data().version || 0;
+      try { prevCount = JSON.parse(prev.data().meta).expected_count; } catch (e) { /* noop */ }
+      say('  既存データ： version ' + prevVersion + (prevCount != null ? ' / ' + prevCount.toLocaleString() + ' 件' : ''));
+    } else {
+      say('  既存データはありません。新規に作成します。');
+    }
+    const version = prevVersion + 1;
+
+    const parts = chunk(parsed.records);
+    say('分割： ' + parts.length + ' 個');
+
+    const meta = Object.assign({}, META_BASE, {
+      key_number_range: { start: parsed.info.min, end: parsed.info.max },
+      expected_count: parsed.records.length,
+      source_file: parsed.fileName,
+      source_updated: new Date().toISOString().slice(0, 10)
+    });
+
+    say('保存しています… version ' + version);
+    const batch = writeBatch(db);
+    batch.set(headRef, { meta: JSON.stringify(meta), chunks: parts.length, version });
+    parts.forEach((c, i) => {
+      const id = String(i).padStart(3, '0');
+      batch.set(doc(collection(headRef, 'parts'), id), { json: JSON.stringify(c) });
+    });
+
+    // 件数が減ったときに古いチャンクが残らないように消す
+    const existing = await getDocs(collection(headRef, 'parts'));
+    let removed = 0;
+    existing.forEach((d) => {
+      if (parseInt(d.id, 10) >= parts.length) { batch.delete(d.ref); removed++; }
+    });
+    if (removed) say('古い分割データを ' + removed + ' 個削除します');
+
+    await batch.commit();
+
+    say('');
+    say('✅ 保存できました。' + parsed.records.length.toLocaleString() + ' 件 / version ' + version);
+    say('');
+    say('アプリ（まるっとコード）を開き直すと、新しいデータが読み込まれます。');
+    say('トヨタ → M382 → H/L逆引き で確認してください。');
+    $('n3').classList.add('done'); $('n3').textContent = '✓';
+    $('n4').classList.add('done'); $('n4').textContent = '✓';
+    $('uploadBtn').textContent = '保存しました';
+  } catch (e) {
+    const code = (e && e.code) || '';
+    say('');
+    say('❌ 保存できませんでした。');
+    say('  ' + (e && e.message ? e.message : e));
+    if (/permission-denied|PERMISSION_DENIED/.test(code + ' ' + (e && e.message))) {
+      say('');
+      say('【原因】Firestore のセキュリティルールが、書き込みを許可していません。');
+      say('  データは1件も変更されていません。');
+      say('');
+      say('  Firebase コンソール → Firestore Database → ルール で、');
+      say('  @' + AUTH_CONFIG.allowedDomain + ' のユーザーに series への write を許可すると保存できます。');
+    }
+    $('uploadBtn').disabled = false;
+  }
+};
+</script>
+</body>
+</html>
